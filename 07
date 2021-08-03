@@ -1,0 +1,165 @@
+import sys
+
+#Parses the command into its component parts
+class Parser:
+    def __init__(self, inst):
+        self.inst = inst
+        self.type = None
+        self.arg1 = None
+        self.arg2 = None
+        self.CleanUp()
+        self.CheckType()
+
+#Checks to see if the code is a push or pop command onto the stack/memories
+#or if it is a logical/arithmetic command
+    def CheckType(self):
+        arithmetic_logic = ['add', 'sub', 'neg', 'eq', 'gt', 'lt', 'and', 'or', 'not']
+        if self.inst == '':
+            return
+        elif any(map(self.inst.__contains__, arithmetic_logic)):
+            self.type = 'C_ARITHMETIC'
+        elif self.inst.startswith('push'):
+            self.type = 'C_PUSH'
+        elif self.inst.startswith('pop'):
+            self.type = 'C_POP'
+        else:
+            self.type = 'Null'
+
+#Returns the first argument of the command that will be translated to VM Code
+    def getArg1(self):
+        if self.type == None:
+            return
+        elif self.type == 'C_ARITHMETIC':
+            self.arg1 = self.inst
+            return self.arg1
+        elif self.type == 'C_PUSH'or self.type == 'C_POP':
+            self.arg1 = self.inst.split(' ')[1]
+            return self.arg1
+
+#Returns the second argument of the command that will be translated to VM Code
+    def getArg2(self):
+        if self.type == None:
+            return
+        elif self.type == 'C_PUSH' or self.type == 'C_POP':
+            self.arg2 = self.inst.split(' ')[2]
+            return self.arg2
+
+#Gets rid of whitespace and comments
+    def CleanUp(self):
+        self.inst = self.inst.strip()
+        comment = self.inst.find('//')
+        if comment == -1:
+            self.inst = self.inst.strip()
+        elif comment == 0:
+            self.inst = ''
+        else:
+            self.inst = self.inst[0: comment].strip()
+
+#list of the code generated for each command
+addC = '@SP,M=M-1,A=M,D=M,@SP,A=M-1,M=M+D'
+subC = '@SP,M=M-1,A=M D=M,@SP,A=M-1,M=M-D'
+negC = '@SP,A=M-1,M=-M'
+eqC ='@SP,M=M-1,A=M,D=M,@X,M=D,@SP,A=M-1,D=M,@X,D=D-M,@EQUAL,D;JEQ,@SP,A=M-1,M=0,(EQUAL),@SP,A=M-1,M=0'
+ltC ='@SP,M=M-1,A=M,D=M,@Y,M=D,@SP,A=M-1,D=M,@Y,D=D-M,@LESS,D;JLT,@SP,A=M-1,M=0,(LESS),@SP,A=M-1,M=0'
+gtC ='@SP,M=M-1,A=M,D=M,@Z,M=D,@SP,A=M-1,D=M,@Z,D=D-M,@GREATER,D;JGT,@SP,A=M-1,M=0,(GREATER),@SP,A=M-1,M=0'
+andC ='@SP,M=M-1,A=M,D=M,@SP,A=M-1,M=D&M'
+orC ='@SP,M=M-1,A=M,D=M,@SP,A=M-1,M=M|D'
+notC ='@SP,A=M-1,M=!M'
+constantC ='D=A,@SP,M=M+1,A=M-1,M=D'
+localPop = 'D=A,@LCL,D=D+M,@V,M=D,@SP,M=M-1,A=M,D=M,@V,A=M,M=D'
+argumentPop = 'D=A,@ARG,D=D+M,@V,M=D,@SP,M=M-1,A=M,D=M,@V,A=M,M=D'
+thisPop = 'D=A,@THIS,D=D+M,@V,M=D,@SP,M=M-1,A=M,D=M,@V,A=M,M=D'
+thatPop = 'D=A,@THAT,D=D+M,@V,M=D,@SP,M=M-1,A=M,D=M,@V,A=M,M=D'
+localPush = 'D=A,@LCL,A=D+M,D=M,@SP,M=M+1,A=M-1,M=D'
+argumentPush = 'D=A,@ARG,A=D+M,D=M,@SP,M=M+1,A=M-1,M=D'
+thisPush = 'D=A,@THIS,A=D+M,D=M,@SP,M=M+1,A=M-1,M=D'
+thatPush = 'D=A,@THAT,A=D+M,D=M,@SP,M=M+1,A=M-1,M=D'
+staticPop = 'D=A,@16,A=D+A,D=A,@V,M=D,@SP,M=M-1,A=M,D=M,@V,A=M,M=D'
+staticPush = 'D=A,@16,A=D+A,D=M,@SP,M=M+1,A=M-1,M=D'
+tempPop = 'D=A,@5,D=D+A,@W,M=D,@SP,M=M-1,A=M,D=M,@W,A=M,M=D'
+tempPush = 'D=A,@5,A=D+A,D=M,@SP,M=M+1,A=M-1,M=D'
+pointer0Push = '@THIS,A=M,D=M,@SP,M=M+1,A=M-1,M=D'
+pointer1Push = '@THAT,A=M,D=M,@SP,M=M+1,A=M-1,M=D'
+pointer0Pop = '@SP,M=M-1,A=M,D=M,@THIS,A=M,M=D'
+pointer1Pop = '@SP,M=M-1,A=M,D=M,@THAT,A=M,M=D'
+#Takes the information from the parser and generates VM Code for it
+class Codewriter():
+    def __init__(self):
+        pass
+
+    def writeArithmetic(self, parser):
+        with open(sys.argv[1].split('.')[0]+'.asm', 'a') as asm:
+            if parser.type != 'C_ARITHMETIC':
+                return
+            elif parser.getArg1() == 'add':
+                asm.write(addC.replace(',', '\n'))
+            elif parser.getArg1() == 'sub':
+                asm.write(subC.replace(',', '\n'))
+            elif parser.getArg1() == 'neg':
+                asm.write(negC.replace(',', '\n'))
+            elif parser.getArg1() == 'lt':
+                asm.write(ltC.replace(',', '\n'))
+            elif parser.getArg1() == 'gt':
+                asm.write(gtC.replace(',', '\n'))
+            elif parser.getArg1() == 'eq':
+                asm.write(eqC.replace(',', '\n'))
+            elif parser.getArg1() == 'and':
+                asm.write(andC.replace(',', '\n'))
+            elif parser.getArg1() == 'or':
+                asm.write(orC.replace(',', '\n'))
+            elif parser.getArg1() == 'not':
+                asm.write(notC.replace(',', '\n'))
+
+    def writePushPop(self, parser):
+        with open(sys.argv[1].split('.')[0]+'.asm', 'a') as asm:
+            if parser.type == 'C_PUSH' and parser.getArg1() == 'constant':
+                asm.write('@'+parser.getArg2()+'\n'+constantC.replace(',','\n'))
+            if parser.type == 'C_PUSH' and parser.getArg1() == 'local':
+                asm.write('@'+parser.getArg2()+'\n'+localPush.replace(',','\n'))
+            if parser.type == 'C_PUSH' and parser.getArg1() == 'argument':
+                asm.write('@'+parser.getArg2()+'\n'+argumentPush.replace(',','\n'))
+            if parser.type == 'C_PUSH' and parser.getArg1() == 'this':
+                asm.write('@'+parser.getArg2()+'\n'+thisPush.replace(',','\n'))
+            if parser.type == 'C_PUSH' and parser.getArg1() == 'that':
+                asm.write('@'+parser.getArg2()+'\n'+thatPush.replace(',','\n'))
+            if parser.type == 'C_PUSH' and parser.getArg1() == 'static':
+                asm.write('@'+parser.getArg2()+'\n'+staticPush.replace(',','\n'))
+            if parser.type == 'C_PUSH' and parser.getArg1() == 'temp':
+                asm.write('@'+parser.getArg2()+'\n'+tempPush.replace(',','\n'))
+            if parser.type == 'C_PUSH' and parser.getArg1() == 'pointer' and parser.getArg2() == '0':
+                asm.write(pointer0Push.replace(',','\n'))
+            if parser.type == 'C_PUSH' and parser.getArg1() == 'pointer' and parser.getArg2() == '1':
+                asm.write(pointer1Push.replace(',','\n'))
+            if parser.type == 'C_POP' and parser.getArg1() == 'local':
+                asm.write('@'+parser.getArg2()+'\n'+localPop.replace(',','\n'))
+            if parser.type == 'C_POP' and parser.getArg1() == 'argument':
+                asm.write('@'+parser.getArg2()+'\n'+argumentPop.replace(',','\n'))
+            if parser.type == 'C_POP' and parser.getArg1() == 'this':
+                asm.write('@'+parser.getArg2()+'\n'+thisPop.replace(',','\n'))
+            if parser.type == 'C_POP' and parser.getArg1() == 'that':
+                asm.write('@'+parser.getArg2()+'\n'+thatPop.replace(',','\n'))
+            if parser.type == 'C_POP' and parser.getArg1() == 'static':
+                asm.write('@'+parser.getArg2()+'\n'+staticPop.replace(',','\n'))
+            if parser.type == 'C_POP' and parser.getArg1() == 'temp':
+                asm.write('@'+parser.getArg2()+'\n'+tempPop.replace(',','\n'))
+            if parser.type == 'C_POP' and parser.getArg1() == 'pointer' and parser.getArg2() == '0':
+                asm.write(pointer0Pop.replace(',','\n'))
+            if parser.type == 'C_POP' and parser.getArg1() == 'pointer' and parser.getArg2() == '1':
+                asm.write(pointer1Pop.replace(',','\n'))
+
+#The command for opening a file and using this script on it.
+#Calling the classes of the scripts and their output to the terminal
+def main():
+    with open(sys.argv[1], 'r') as vm:
+        for inst in vm:
+            p = Parser(inst)
+            code = Codewriter()
+            #print(p.inst)
+            #print(p.type)
+            #print(p.getArg1())
+            #print(p.getArg2())
+            print(code.writeArithmetic(p))
+            print(code.writePushPop(p))
+
+if __name__ == "__main__":
+    main()
