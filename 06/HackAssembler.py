@@ -2,7 +2,7 @@ import sys
 # This is the most intesive program I have written thus far 7/23/2021. I could not have done it by myself. There is a youtuber named Sahil Vasava at
 # https://www.youtube.com/channel/UCJ21D23OiTxS2NNqIEviQhA whoms videos I watched and walked through with him, sort of like a problem in a text book.
 # Without Sahil, I would not have been able to come up with this code, but thanks to his walkthrough and thorough approach I learned quite a lot about how
-# approach a project. How to search intelligently for solutions to problems you are coming up with and how to implement them.
+# to approach a project like this. How to search intelligently for solutions to problems you are coming up with and how to implement them.
 # Thank you Sahil Vasava.
 class Parser:
     def __init__(self, inst):
